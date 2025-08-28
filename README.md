@@ -25,9 +25,7 @@ Device Dominance – Market share of smartphones used for PhonePe
 
 Insurance – Adoption and penetration across regions
 
-Geo Insights – State- and district-level analysis with choropleth maps
 
-Top Performers – Identification of top pincodes/districts by usage
 
 🛠️ Tech Stack
 
