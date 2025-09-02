@@ -5,6 +5,7 @@ import streamlit as st
 import plotly.express as px
 from sqlalchemy import create_engine, text
 import requests
+import matplotlib.pyplot as plt
 
 path = r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\aggregated\transaction\country\india\state"
 Agg_trans_list = os.listdir(path)
@@ -39,8 +40,7 @@ for i in Agg_trans_list:
 
 # Create DataFrame
 Agg_Trans = pd.DataFrame(clm)
-#print(p_k)
-print(Agg_Trans)
+print(f" Extracted rows: {len(Agg_Trans)}")
 
 path_2=r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\aggregated\user\country\india\state"
 aggre_user_list = os.listdir(path_2)
@@ -82,8 +82,8 @@ aggre_user["States"] = aggre_user["States"].str.replace("-"," ")
 aggre_user["States"] = aggre_user["States"].str.title()
 aggre_user["States"] = aggre_user["States"].str.replace("dadra-&-nagar-haveli-&-daman-&-diu","Dadra and Nagar Haveli and Daman Diu")
 
-print(f" Extracted rows: {len(aggre_user)}")
-print(aggre_user.head())
+
+
 
 
 path_3=r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\map\transaction\hover\country\india\state"
@@ -123,7 +123,7 @@ map_transaction["States"] = map_transaction["States"].str.title()
 map_transaction["States"] = map_transaction["States"].str.replace("dadra-&-nagar-haveli-&-daman-&-diu","Dadra and Nagar Haveli and Daman Diu")
 
 print(f" Extracted rows: {len(map_transaction)}")
-print(map_transaction.head())
+
 
 
 path_4=r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\map\user\hover\country\india\state"
@@ -163,7 +163,7 @@ map_user["States"] = map_user["States"].str.title()
 map_user["States"] = map_user["States"].str.replace("dadra-&-nagar-haveli-&-daman-&-diu","Dadra and Nagar Haveli and Daman Diu")
 
 print(f" Extracted rows: {len(map_user)}")
-print(map_user.head())
+
 
 
 path_5=r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\top\transaction\country\india\state"
@@ -203,7 +203,7 @@ top_transaction["States"] = top_transaction["States"].str.title()
 top_transaction["States"] = top_transaction["States"].str.replace("dadra-&-nagar-haveli-&-daman-&-diu","Dadra and Nagar Haveli and Daman Diu")
 
 print(f" Extracted rows: {len(top_transaction)}")
-print(top_transaction.head())
+
 
 
 path_6 = r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\top\user\country\india\state"
@@ -241,7 +241,6 @@ top_user["States"] = top_user["States"].str.replace("-"," ")
 top_user["States"] = top_user["States"].str.title()
 top_user["States"] = top_user["States"].str.replace("dadra-&-nagar-haveli-&-daman-&-diu","Dadra and Nagar Haveli and Daman Diu")
 print(f" Extracted rows: {len(top_user)}")
-print(top_user.head())
 
 
 path_7 =r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\aggregated\insurance\country\india\state"
@@ -303,7 +302,7 @@ for state_raw in aggre_insurance_list:
 aggre_insurance = pd.DataFrame(column_aggre_insurance)
 
 print(f" Extracted rows: {len(aggre_insurance)}")
-print(aggre_insurance.head())
+
 
 
 path_8 = r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\map\insurance\hover\country\india\state"
@@ -370,7 +369,7 @@ map_insurance = pd.DataFrame(column_map_insurance)
 
 # Check extracted data
 print(f" Extracted rows: {len(map_insurance)}")
-print(map_insurance.head())
+
 
 
 path_9 = r"C:\Users\Priyadharshini\Documents\Usecase1\pulse\data\top\insurance\country\india\state"
@@ -436,7 +435,8 @@ top_insurance = pd.DataFrame(column_top_insurance)
 
 # Check extracted data
 print(f" Extracted rows: {len(top_insurance)}")
-print(top_insurance.head())
+
+
 
 
 
@@ -591,6 +591,16 @@ elif page == "Transactions":
        WHERE Years={year_filter} AND Quarter={quarter_filter}
        GROUP BY Years, Quarter, Transaction_type
     """)
+    df1 = run_query(f"""
+        SELECT 
+        Years, 
+        Quarter, 
+        Transaction_type, 
+        SUM(Transaction_count) AS Total_Count,
+        SUM(Transaction_amount) AS Total_Amount
+        FROM transactions1
+        GROUP BY Years, Quarter, Transaction_type
+        ORDER BY Years, Quarter""")
 
     # Line chart
     fig_line = px.line(df, x="Transaction_type", y="TxnAmount", markers=True,
@@ -601,6 +611,52 @@ elif page == "Transactions":
     fig_bar = px.bar(df, x="Transaction_type", y="TxnCount", color="Transaction_type",
                      title="Transaction Count by Type")
     st.plotly_chart(fig_bar, use_container_width=True)
+
+    
+
+    # Create Year_Quarter column
+    df1["Year_Quarter"] = df1["Years"].astype(str) + "-Q" + df1["Quarter"].astype(str)
+
+    # Pivot tables
+    pivot_counts = df1.pivot_table(
+        index="Year_Quarter", columns="Transaction_type",
+        values="Total_Count", aggfunc="sum", fill_value=0
+    )
+
+    pivot_amounts = df1.pivot_table(
+        index="Year_Quarter", columns="Transaction_type",
+        values="Total_Amount", aggfunc="sum", fill_value=0
+    )
+
+    # Check if they are empty before plotting
+    print("Pivot Counts shape:", pivot_counts.shape)
+    print("Pivot Amounts shape:", pivot_amounts.shape)
+    print(pivot_counts.head())
+    print(pivot_amounts.head())
+
+    if not pivot_counts.empty and not pivot_amounts.empty:
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
+
+        # Plot counts
+        pivot_counts.plot(kind="bar", stacked=True, ax=ax1)
+        ax1.set_title("Transaction Count by Type across Years and Quarters")
+        ax1.set_xlabel("Year - Quarter")
+        ax1.set_ylabel("Transaction Count")
+        ax1.legend(title="Transaction Type", bbox_to_anchor=(1.05, 1))
+
+        # Plot amounts
+        pivot_amounts.plot(kind="bar", stacked=True, ax=ax2)
+        ax2.set_title("Transaction Amount by Type across Years and Quarters")
+        ax2.set_xlabel("Year - Quarter")
+        ax2.set_ylabel("Transaction Amount (INR)")
+        ax2.legend(title="Transaction Type", bbox_to_anchor=(1.05, 1))
+
+        plt.tight_layout()
+        st.pyplot(fig)
+    else:
+        print("⚠️ Pivot table is empty. Check column names and data.")
+
+
 
 # ---------------------------
 # Insurance
@@ -622,6 +678,20 @@ elif page == "Insurance":
                  title="Insurance Amount & Count by State")
     st.plotly_chart(fig, use_container_width=True)
 
+    df1 = run_query(f"""
+        SELECT Districts,
+       SUM(Transaction_count) AS TxnCount,
+       SUM(Transaction_amount) AS TxnAmount
+       FROM transactions8
+       WHERE Years={year_filter} AND Quarter={quarter_filter}
+       GROUP BY Districts
+
+    """)
+
+    fig1 = px.bar(df1, x="Districts", y="TxnAmount", color="TxnCount",
+                 title="Insurance Amount & Count by Districts")
+    st.plotly_chart(fig1, use_container_width=True)
+
 # ---------------------------
 # User Registrations
 # ---------------------------
@@ -633,13 +703,26 @@ elif page == "User Registrations":
         FROM transactions6
         WHERE Years={year_filter} AND Quarter={quarter_filter}
         GROUP BY States
-
-
+        ORDER BY Users DESC
     """)
 
     fig = px.bar(df, x="Users", y="States", orientation="h",
                  title="Top States by User Registrations")
     st.plotly_chart(fig, use_container_width=True)
+
+    df1 = run_query(f"""
+       SELECT Districts, SUM(RegisteredUser) AS Total_Users
+        FROM transactions4
+        WHERE Years = {year_filter}  AND Quarter = {quarter_filter}
+        GROUP BY Districts
+        ORDER BY Total_Users DESC
+    """)
+
+    fig1 = px.line(df1, x="Districts", y="Total_Users", orientation="h",
+                 title="Top Districts by User Registrations")
+    st.plotly_chart(fig1, use_container_width=True)
+    
+    
 
 # ---------------------------
 # Engagement & Growth
